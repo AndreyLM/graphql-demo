@@ -1,0 +1,23 @@
+
+func (r *queryResolver) Videos(ctx context.Context, limit *int, offset *int) ([]*api.Video, error) {
+	var videos []*api.Video
+
+	rows, err := dal.LogAndQuery(r.db, "SELECT id, name, url, created_at, user_id FROM videos ORDER BY created_at desc LIMIT $1 offset $2",
+		limit, offset)
+	defer rows.Close()
+	if err != nil {
+		errors.DebugPrintf(err)
+		return nil, errors.InternalServerError
+	}
+
+	for rows.Next() {
+		video := api.Video{}
+		if err := rows.Scan(&video.ID, &video.Name, &video.URL, &video.CreatedAt, &video.UserID)
+	}
+}
+
+type screenshotResolver struct{ *Resolver }
+
+func (r *screenshotResolver) VideoID(ctx context.Context, obj *api.Screenshot) (int, error) {
+	panic("not implemented")
+}

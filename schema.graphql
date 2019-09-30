@@ -6,6 +6,7 @@ type User {
 
 type Video {
     id: ID!
+    name: String!
     description: String!
     user: User!
     url: String!
