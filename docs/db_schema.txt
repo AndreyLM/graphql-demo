@@ -1,0 +1,30 @@
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(512) UNIQUE NOT NULL,
+    email VARCHAR(512) UNIQUE NOT NULL
+)
+
+CREATE TABLE videos (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(512) NOT NULL,
+	description VARCHAR(512) NOT NULL,
+	user_id int NOT NULL,
+	url VARCHAR(512) NOT NULL,
+	created_at   timestamptz DEFAULT NOW(), 
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+)
+
+CREATE TABLE screenshots (
+    id SERIAL PRIMARY KEY,
+    video_id int NOT NULL,
+    url VARCHAR(512) NOT NULL,
+    FOREIGN KEY (video_id) REFERENCES videos (id) ON DELETE CASCADE 
+)
+
+CREATE TABLE realated_videos (
+    first_id int NOT NULL,
+    second_id int  NOT NULL,
+    PRIMARY KEY(first_id, second_id),
+    FOREIGN KEY (first_id) REFERENCES videos (id) ON DELETE CASCADE,
+    FOREIGN KEY (second_id) REFERENCES videos (id) ON DELETE CASCADE
+)

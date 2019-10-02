@@ -2,56 +2,49 @@ package graphql_demo
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/andreylm/graphql-demo/api"
 	"github.com/andreylm/graphql-demo/api/dal"
+	"github.com/andreylm/graphql-demo/api/dataloaders"
 	"github.com/andreylm/graphql-demo/api/errors"
+	"github.com/andreylm/graphql-demo/api/utils"
 )
 
-// THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
+type videoResolver struct{ *Resolver }
 
-// Resolver -resolver
-type Resolver struct {
-	db *sql.DB
+func (r *videoResolver) User(ctx context.Context, obj *api.Video) (*api.User, error) {
+	return ctx.Value(dataloaders.CtxKey).(*dataloaders.UserLoader).Load(obj.UserID)
 }
 
-// NewResolver - creates new resolver
-func NewResolver(db *sql.DB) *Resolver {
-	return &Resolver{db: db}
+func (r *videoResolver) Screenshots(ctx context.Context, obj *api.Video) ([]*api.Screenshot, error) {
+	return nil, nil
 }
 
-// Mutation - Mutation
-func (r *Resolver) Mutation() MutationResolver {
-	return &mutationResolver{r}
+func (r *videoResolver) Related(ctx context.Context, obj *api.Video, limit *int, offset *int) ([]*api.Video, error) {
+	return nil, nil
 }
-
-// Query - Query
-func (r *Resolver) Query() QueryResolver {
-	return &queryResolver{r}
-}
-
-// Video - Video
-func (r *Resolver) Video() VideoResolver {
-	return &videoResolver{r}
-}
-
-type mutationResolver struct{ *Resolver }
 
 func (r *mutationResolver) CreateVideo(ctx context.Context, input NewVideo) (*api.Video, error) {
 	newVideo := api.Video{
-		URL:       input.URL,
-		Name:      input.Name,
-		CreatedAt: time.Now().UTC(),
+		URL:         input.URL,
+		Name:        input.Name,
+		Description: input.Description,
+		CreatedAt:   time.Now().UTC(),
+		UserID:      input.UserID,
 	}
 
-	rows, err := dal.LogAndQuery(r.db, "INSERT INTO videos (name, url, user_id, created_at) VALUES($1, $2, $3, $4) RETURNING id",
-		input.Name, input.URL, input.UserID, newVideo.CreatedAt)
+	rows, err := dal.LogAndQuery(r.db, "INSERT INTO videos (name, url, description, user_id, created_at) VALUES($1, $2, $3, $4, $5) RETURNING id",
+		input.Name, input.URL, input.Description, input.UserID, newVideo.CreatedAt)
 
-	defer rows.Close()
-	if err != nil || !rows.Next() {
+	if err != nil {
+		errors.DebugPrintf(err)
 		return nil, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return nil, nil
 	}
 
 	if err := rows.Scan(&newVideo.ID); err != nil {
@@ -62,16 +55,18 @@ func (r *mutationResolver) CreateVideo(ctx context.Context, input NewVideo) (*ap
 		return nil, errors.InternalServerError
 	}
 
+	for _, observer := range videoPublishedChannel {
+		observer <- &newVideo
+	}
+
 	return &newVideo, nil
 }
-
-type queryResolver struct{ *Resolver }
 
 func (r *queryResolver) Videos(ctx context.Context, limit *int, offset *int) ([]*api.Video, error) {
 	var videos []*api.Video
 
 	rows, err := dal.LogAndQuery(r.db, "SELECT id, name, url, created_at, user_id FROM videos ORDER BY created_at desc LIMIT $1 offset $2",
-		limit, offset)
+		utils.GetInteger(limit, 10), utils.GetInteger(offset, 0))
 	defer rows.Close()
 	if err != nil {
 		errors.DebugPrintf(err)
@@ -88,10 +83,4 @@ func (r *queryResolver) Videos(ctx context.Context, limit *int, offset *int) ([]
 	}
 
 	return videos, nil
-}
-
-type videoResolver struct{ *Resolver }
-
-func (r *videoResolver) User(ctx context.Context, obj *api.Video) (*api.User, error) {
-	panic("not implemented")
 }

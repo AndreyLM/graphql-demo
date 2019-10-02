@@ -2,6 +2,7 @@ type User {
     id: ID!
     name: String!
     email: String!
+    videos(limit: Int = 10, offset: Int = 0):[Video!]!
 }
 
 type Video {
@@ -28,12 +29,25 @@ input NewVideo {
     url: String!
 }
 
+input NewUser {
+    name: String!
+    email: String!
+}
+
 type Mutation {
-    createVideo(input: NewVideo!): Video!
+    createUser(input: NewUser!): User!
+    createVideo(input: NewVideo!): Video! @isAuthenticated
 }
 
 type Query {
-    Videos(limit: Int = 25, offset: Int = 0): [Video!]!
+    Videos(limit: Int = 10, offset: Int = 0): [Video!]!
+    Users(limit: Int = 10, offset: Int = 0): [User!]!
+}
+
+type Subscription {
+    videoPublished: Video!
 }
 
 scalar Timestamp
+
+directive @isAuthenticated on FIELD_DEFINITION

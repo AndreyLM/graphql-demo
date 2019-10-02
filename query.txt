@@ -1,0 +1,5 @@
+{
+    "operationName":null,
+    "variables":{},
+    "query": "{\n  Videos(limit: 10) {\n    id\n    description\n    user {\n      name\n      email\n    }\n  }\n}\n"
+}

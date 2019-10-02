@@ -13,11 +13,11 @@ var once sync.Once
 
 const (
 	// DBUSER - db user
-	DBUSER = "postgres"
+	DBUSER = "admin"
 	// DBPASSWORD - db password
-	DBPASSWORD = "postgres"
+	DBPASSWORD = "password"
 	// DBNAME - db name
-	DBNAME = "graphql"
+	DBNAME = "graphqldb"
 )
 
 // Connect - connects to db
