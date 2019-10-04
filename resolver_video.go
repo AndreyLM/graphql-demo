@@ -14,7 +14,7 @@ import (
 type videoResolver struct{ *Resolver }
 
 func (r *videoResolver) User(ctx context.Context, obj *api.Video) (*api.User, error) {
-	return ctx.Value(dataloaders.CtxKey).(*dataloaders.UserLoader).Load(obj.UserID)
+	return ctx.Value(dataloaders.CtxKeyUser).(*dataloaders.UserLoader).Load(obj.UserID)
 }
 
 func (r *videoResolver) Screenshots(ctx context.Context, obj *api.Video) ([]*api.Screenshot, error) {

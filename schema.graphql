@@ -37,6 +37,7 @@ input NewUser {
 type Mutation {
     createUser(input: NewUser!): User!
     createVideo(input: NewVideo!): Video! @isAuthenticated
+    addVideoRelation(firstId: Int!, secondId: Int!)
 }
 
 type Query {
