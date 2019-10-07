@@ -22,7 +22,28 @@ func (r *videoResolver) Screenshots(ctx context.Context, obj *api.Video) ([]*api
 }
 
 func (r *videoResolver) Related(ctx context.Context, obj *api.Video, limit *int, offset *int) ([]*api.Video, error) {
-	return nil, nil
+	var videos []*api.Video
+
+	rows, err := dal.LogAndQuery(
+		r.db,
+		"SELECT id, name, url, created_at, user_id FROM videos RIGHT JOIN related_videos ON first_id = id OR second_id = id WHERE ( first_id = $1 OR second_id = $1 ) AND id != $1 ORDER BY created_at desc LIMIT $2 offset $3",
+		obj.ID, utils.GetInteger(limit, 10), utils.GetInteger(offset, 0))
+	if err != nil {
+		errors.DebugPrintf(err)
+		return nil, errors.InternalServerError
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		video := api.Video{}
+		if err := rows.Scan(&video.ID, &video.Name, &video.URL, &video.CreatedAt, &video.UserID); err != nil {
+			errors.DebugPrintf(err)
+			return nil, errors.InternalServerError
+		}
+		videos = append(videos, &video)
+	}
+
+	return videos, nil
 }
 
 func (r *mutationResolver) CreateVideo(ctx context.Context, input NewVideo) (*api.Video, error) {
@@ -62,16 +83,30 @@ func (r *mutationResolver) CreateVideo(ctx context.Context, input NewVideo) (*ap
 	return &newVideo, nil
 }
 
+func (r *mutationResolver) RemoveVideo(ctx context.Context, input int) (bool, error) {
+	_, err := dal.LogAndQuery(
+		r.db,
+		"DELETE FROM videos WHERE id = $1",
+		input,
+	)
+	if err != nil {
+		errors.DebugPrintf(err)
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (r *queryResolver) Videos(ctx context.Context, limit *int, offset *int) ([]*api.Video, error) {
 	var videos []*api.Video
 
 	rows, err := dal.LogAndQuery(r.db, "SELECT id, name, url, created_at, user_id FROM videos ORDER BY created_at desc LIMIT $1 offset $2",
 		utils.GetInteger(limit, 10), utils.GetInteger(offset, 0))
-	defer rows.Close()
 	if err != nil {
 		errors.DebugPrintf(err)
 		return nil, errors.InternalServerError
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		video := api.Video{}

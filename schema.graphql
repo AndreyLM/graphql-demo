@@ -34,10 +34,18 @@ input NewUser {
     email: String!
 }
 
+input VideoRelation {
+    firstId: ID!
+    secondId: ID!
+}
+
 type Mutation {
     createUser(input: NewUser!): User!
     createVideo(input: NewVideo!): Video! @isAuthenticated
-    addVideoRelation(firstId: Int!, secondId: Int!)
+    addVideoRelation(input: VideoRelation!): Boolean!
+    removeUser(input: ID!): Boolean! @hasRole(role: ADMIN)
+    removeVideoRelation(input: VideoRelation!): Boolean!
+    removeVideo(input: ID!): Boolean!
 }
 
 type Query {
@@ -50,5 +58,10 @@ type Subscription {
 }
 
 scalar Timestamp
+enum Role {
+    ADMIN
+    USER
+}
 
 directive @isAuthenticated on FIELD_DEFINITION
+directive @hasRole(role: Role!) on FIELD_DEFINITION

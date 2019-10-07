@@ -46,13 +46,19 @@ type ResolverRoot interface {
 }
 
 type DirectiveRoot struct {
+	HasRole func(ctx context.Context, obj interface{}, next graphql.Resolver, role Role) (res interface{}, err error)
+
 	IsAuthenticated func(ctx context.Context, obj interface{}, next graphql.Resolver) (res interface{}, err error)
 }
 
 type ComplexityRoot struct {
 	Mutation struct {
-		CreateUser  func(childComplexity int, input NewUser) int
-		CreateVideo func(childComplexity int, input NewVideo) int
+		AddVideoRelation    func(childComplexity int, input VideoRelation) int
+		CreateUser          func(childComplexity int, input NewUser) int
+		CreateVideo         func(childComplexity int, input NewVideo) int
+		RemoveUser          func(childComplexity int, input int) int
+		RemoveVideo         func(childComplexity int, input int) int
+		RemoveVideoRelation func(childComplexity int, input VideoRelation) int
 	}
 
 	Query struct {
@@ -92,6 +98,10 @@ type ComplexityRoot struct {
 type MutationResolver interface {
 	CreateUser(ctx context.Context, input NewUser) (*api.User, error)
 	CreateVideo(ctx context.Context, input NewVideo) (*api.Video, error)
+	AddVideoRelation(ctx context.Context, input VideoRelation) (bool, error)
+	RemoveUser(ctx context.Context, input int) (bool, error)
+	RemoveVideoRelation(ctx context.Context, input VideoRelation) (bool, error)
+	RemoveVideo(ctx context.Context, input int) (bool, error)
 }
 type QueryResolver interface {
 	Videos(ctx context.Context, limit *int, offset *int) ([]*api.Video, error)
@@ -125,6 +135,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	_ = ec
 	switch typeName + "." + field {
 
+	case "Mutation.addVideoRelation":
+		if e.complexity.Mutation.AddVideoRelation == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addVideoRelation_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddVideoRelation(childComplexity, args["input"].(VideoRelation)), true
+
 	case "Mutation.createUser":
 		if e.complexity.Mutation.CreateUser == nil {
 			break
@@ -148,6 +170,42 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.CreateVideo(childComplexity, args["input"].(NewVideo)), true
+
+	case "Mutation.removeUser":
+		if e.complexity.Mutation.RemoveUser == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_removeUser_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RemoveUser(childComplexity, args["input"].(int)), true
+
+	case "Mutation.removeVideo":
+		if e.complexity.Mutation.RemoveVideo == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_removeVideo_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RemoveVideo(childComplexity, args["input"].(int)), true
+
+	case "Mutation.removeVideoRelation":
+		if e.complexity.Mutation.RemoveVideoRelation == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_removeVideoRelation_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.RemoveVideoRelation(childComplexity, args["input"].(VideoRelation)), true
 
 	case "Query.Users":
 		if e.complexity.Query.Users == nil {
@@ -422,9 +480,18 @@ input NewUser {
     email: String!
 }
 
+input VideoRelation {
+    firstId: ID!
+    secondId: ID!
+}
+
 type Mutation {
     createUser(input: NewUser!): User!
     createVideo(input: NewVideo!): Video! @isAuthenticated
+    addVideoRelation(input: VideoRelation!): Boolean!
+    removeUser(input: ID!): Boolean! @hasRole(role: ADMIN)
+    removeVideoRelation(input: VideoRelation!): Boolean!
+    removeVideo(input: ID!): Boolean!
 }
 
 type Query {
@@ -437,13 +504,46 @@ type Subscription {
 }
 
 scalar Timestamp
+enum Role {
+    ADMIN
+    USER
+}
 
-directive @isAuthenticated on FIELD_DEFINITION`},
+directive @isAuthenticated on FIELD_DEFINITION
+directive @hasRole(role: Role!) on FIELD_DEFINITION`},
 )
 
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) dir_hasRole_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 Role
+	if tmp, ok := rawArgs["role"]; ok {
+		arg0, err = ec.unmarshalNRole2githubᚗcomᚋandreylmᚋgraphqlᚑdemoᚐRole(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["role"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_addVideoRelation_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 VideoRelation
+	if tmp, ok := rawArgs["input"]; ok {
+		arg0, err = ec.unmarshalNVideoRelation2githubᚗcomᚋandreylmᚋgraphqlᚑdemoᚐVideoRelation(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Mutation_createUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
@@ -465,6 +565,48 @@ func (ec *executionContext) field_Mutation_createVideo_args(ctx context.Context,
 	var arg0 NewVideo
 	if tmp, ok := rawArgs["input"]; ok {
 		arg0, err = ec.unmarshalNNewVideo2githubᚗcomᚋandreylmᚋgraphqlᚑdemoᚐNewVideo(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_removeUser_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["input"]; ok {
+		arg0, err = ec.unmarshalNID2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_removeVideoRelation_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 VideoRelation
+	if tmp, ok := rawArgs["input"]; ok {
+		arg0, err = ec.unmarshalNVideoRelation2githubᚗcomᚋandreylmᚋgraphqlᚑdemoᚐVideoRelation(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_removeVideo_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["input"]; ok {
+		arg0, err = ec.unmarshalNID2int(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
@@ -717,6 +859,206 @@ func (ec *executionContext) _Mutation_createVideo(ctx context.Context, field gra
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
 	return ec.marshalNVideo2ᚖgithubᚗcomᚋandreylmᚋgraphqlᚑdemoᚋapiᚐVideo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_addVideoRelation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+		ec.Tracer.EndFieldExecution(ctx)
+	}()
+	rctx := &graphql.ResolverContext{
+		Object:   "Mutation",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_addVideoRelation_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddVideoRelation(rctx, args["input"].(VideoRelation))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_removeUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+		ec.Tracer.EndFieldExecution(ctx)
+	}()
+	rctx := &graphql.ResolverContext{
+		Object:   "Mutation",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_removeUser_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		directive0 := func(rctx context.Context) (interface{}, error) {
+			ctx = rctx // use context from middleware stack in children
+			return ec.resolvers.Mutation().RemoveUser(rctx, args["input"].(int))
+		}
+		directive1 := func(ctx context.Context) (interface{}, error) {
+			role, err := ec.unmarshalNRole2githubᚗcomᚋandreylmᚋgraphqlᚑdemoᚐRole(ctx, "ADMIN")
+			if err != nil {
+				return nil, err
+			}
+			if ec.directives.HasRole == nil {
+				return nil, errors.New("directive hasRole is not implemented")
+			}
+			return ec.directives.HasRole(ctx, nil, directive0, role)
+		}
+
+		tmp, err := directive1(rctx)
+		if err != nil {
+			return nil, err
+		}
+		if tmp == nil {
+			return nil, nil
+		}
+		if data, ok := tmp.(bool); ok {
+			return data, nil
+		}
+		return nil, fmt.Errorf(`unexpected type %T from directive, should be bool`, tmp)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_removeVideoRelation(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+		ec.Tracer.EndFieldExecution(ctx)
+	}()
+	rctx := &graphql.ResolverContext{
+		Object:   "Mutation",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_removeVideoRelation_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RemoveVideoRelation(rctx, args["input"].(VideoRelation))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_removeVideo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+		ec.Tracer.EndFieldExecution(ctx)
+	}()
+	rctx := &graphql.ResolverContext{
+		Object:   "Mutation",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_removeVideo_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RemoveVideo(rctx, args["input"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_Videos(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2705,6 +3047,30 @@ func (ec *executionContext) unmarshalInputNewVideo(ctx context.Context, obj inte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputVideoRelation(ctx context.Context, obj interface{}) (VideoRelation, error) {
+	var it VideoRelation
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "firstId":
+			var err error
+			it.FirstID, err = ec.unmarshalNID2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "secondId":
+			var err error
+			it.SecondID, err = ec.unmarshalNID2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -2735,6 +3101,26 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			}
 		case "createVideo":
 			out.Values[i] = ec._Mutation_createVideo(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "addVideoRelation":
+			out.Values[i] = ec._Mutation_addVideoRelation(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "removeUser":
+			out.Values[i] = ec._Mutation_removeUser(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "removeVideoRelation":
+			out.Values[i] = ec._Mutation_removeVideoRelation(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "removeVideo":
+			out.Values[i] = ec._Mutation_removeVideo(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -3282,6 +3668,15 @@ func (ec *executionContext) unmarshalNNewVideo2githubᚗcomᚋandreylmᚋgraphql
 	return ec.unmarshalInputNewVideo(ctx, v)
 }
 
+func (ec *executionContext) unmarshalNRole2githubᚗcomᚋandreylmᚋgraphqlᚑdemoᚐRole(ctx context.Context, v interface{}) (Role, error) {
+	var res Role
+	return res, res.UnmarshalGQL(v)
+}
+
+func (ec *executionContext) marshalNRole2githubᚗcomᚋandreylmᚋgraphqlᚑdemoᚐRole(ctx context.Context, sel ast.SelectionSet, v Role) graphql.Marshaler {
+	return v
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
 	return graphql.UnmarshalString(v)
 }
@@ -3410,6 +3805,10 @@ func (ec *executionContext) marshalNVideo2ᚖgithubᚗcomᚋandreylmᚋgraphql�
 		return graphql.Null
 	}
 	return ec._Video(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNVideoRelation2githubᚗcomᚋandreylmᚋgraphqlᚑdemoᚐVideoRelation(ctx context.Context, v interface{}) (VideoRelation, error) {
+	return ec.unmarshalInputVideoRelation(ctx, v)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

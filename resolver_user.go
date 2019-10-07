@@ -2,6 +2,8 @@ package graphql_demo
 
 import (
 	"context"
+	"database/sql"
+	"strings"
 
 	"github.com/andreylm/graphql-demo/api"
 	"github.com/andreylm/graphql-demo/api/dal"
@@ -64,28 +66,40 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input NewUser) (*api.
 	return newUser, nil
 }
 
+func (r *mutationResolver) RemoveUser(ctx context.Context, input int) (bool, error) {
+	_, err := dal.LogAndQuery(
+		r.db,
+		"DELETE FROM users WHERE id = $1",
+		input,
+	)
+	if err != nil {
+		errors.DebugPrintf(err)
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (r *userResolver) Videos(ctx context.Context, obj *api.User, limit *int, offset *int) ([]*api.Video, error) {
 	return ctx.Value(dataloaders.CtxKeyVideo).(*dataloaders.VideoLoader).Load(obj.ID)
+}
 
-	// var videos []*api.Video
+func hasRole(db *sql.DB, userID int, role string) bool {
+	rows, err := dal.LogAndQuery(
+		db,
+		"SELECT roles.name as uRole FROM roles INNER JOIN user_roles ON roles.id = user_roles.role_id WHERE user_roles.user_id = $1",
+		userID,
+	)
+	if err != nil {
+		errors.DebugPrintf(err)
+		return false
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return false
+	}
 
-	// rows, err := dal.LogAndQuery(r.db, "SELECT id, name, description, url FROM videos WHERE user_id =  $1 LIMIT $2 OFFSET $3",
-	// 	obj.ID, utils.GetInteger(limit, 10), utils.GetInteger(offset, 0))
-	// if err != nil {
-	// 	errors.DebugPrintf(err)
-	// 	return nil, errors.InternalServerError
-	// }
-	// defer rows.Close()
-
-	// for rows.Next() {
-	// 	video := api.Video{UserID: obj.ID}
-	// 	if err := rows.Scan(&video.ID, &video.Name, &video.Description, &video.URL); err != nil {
-	// 		errors.DebugPrintf(err)
-	// 		return nil, errors.InternalServerError
-	// 	}
-
-	// 	videos = append(videos, &video)
-	// }
-
-	// return videos, nil
+	var uRole string
+	rows.Scan(&uRole)
+	return strings.ToLower(uRole) == strings.ToLower(role)
 }

@@ -16,6 +16,8 @@ var (
 	UserNotExist = GenerateError("User not Exist")
 	// UnauthorisedError - unauthorised error
 	UnauthorisedError = GenerateError("You are not authorised to perform this action")
+	// ForbiddenError - forbidden
+	ForbiddenError = GenerateError("You are not allowed to perform this action")
 	// TimeStampError - invalid timestamp
 	TimeStampError = GenerateError("time should be a unix timestamp")
 	// InternalServerError - internal server error

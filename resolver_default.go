@@ -3,6 +3,7 @@ package graphql_demo
 import (
 	"context"
 	"database/sql"
+	"strconv"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/andreylm/graphql-demo/api/errors"
@@ -13,6 +14,8 @@ type contextKey string
 var (
 	// UserIDCtxKey - user context id key
 	UserIDCtxKey contextKey = "userID"
+	// UserRoleCtxKey - user context role key
+	UserRoleCtxKey contextKey = "userRole"
 )
 
 // THIS CODE IS A STARTING POINT ONLY. IT WILL NOT BE UPDATED WITH SCHEMA CHANGES.
@@ -40,6 +43,24 @@ func NewRootResolvers(db *sql.DB) Config {
 			return next(ctx)
 		}
 		return nil, errors.UnauthorisedError
+	}
+
+	c.Directives.HasRole = func(ctx context.Context, obj interface{}, next graphql.Resolver, role Role) (res interface{}, err error) {
+		ctxUserID := ctx.Value(UserIDCtxKey).(string)
+		if ctxUserID == "" {
+			return nil, errors.ForbiddenError
+		}
+
+		userID, err := strconv.Atoi(ctxUserID)
+		if err != nil {
+			return nil, errors.ForbiddenError
+		}
+
+		if !hasRole(db, userID, role.String()) {
+			return nil, errors.ForbiddenError
+		}
+
+		return next(ctx)
 	}
 
 	countCompexity := func(childComplexity int, limit *int, offset *int) int {
